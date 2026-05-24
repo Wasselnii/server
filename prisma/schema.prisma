@@ -31,6 +31,11 @@ enum RideStatus {
     IN_PROGRESS
 }
 
+enum RoomType {
+    GROUP
+    PRIVATE
+}
+
 model User {
     id          Int       @id @default(autoincrement())
     googleId    String?
@@ -49,15 +54,17 @@ model User {
     emailVerified Boolean @default(false)
     phoneVerified Boolean @default(false)
 
-    // Relationships
-    ridesOffered Ride[] @relation("DriverRides")
-
-    bookings Booking[]
-
-    createdAt       DateTime @default(now())
-    updatedAt       DateTime @updatedAt
+    //relationships
+    ridesOffered Ride[]    @relation("DriverRides")
+    bookings     Booking[]
     reviewsGiven    Review[] @relation("ReviewsGiven")
     reviewsReceived Review[] @relation("ReviewsReceived")
+
+    roomMemberships RoomMember[]
+    messages        Message[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 }
 
 model Ride {
@@ -105,4 +112,46 @@ model Review {
     createdAt  DateTime @default(now())
 
     @@unique([rideId, reviewerId])
+}
+
+model Room {
+    id   Int      @id @default(autoincrement())
+    name String?              // optional — private chats have no name
+    type RoomType
+
+    members  RoomMember[]
+    messages Message[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+// Join table: User ↔ Room (many-to-many)
+model RoomMember {
+    id       Int      @id @default(autoincrement())
+    userId   Int
+    roomId   Int
+    joinedAt DateTime @default(now())
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, roomId]) // a user can only join a room once
+    @@index([roomId])
+    @@index([userId])
+}
+
+model Message {
+    id        Int      @id @default(autoincrement())
+    text      String   @db.VarChar(1000)
+    userId    Int
+    roomId    Int
+    clientId  String?  @unique // dedup key sent from client (UUID)
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+    createdAt DateTime @default(now())
+
+    @@index([roomId, createdAt])
 }
