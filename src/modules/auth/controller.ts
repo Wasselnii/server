@@ -26,11 +26,13 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
     const payload = ticket.getPayload();
     if (!payload?.email) throw AppError.badRequest("Invalid Google Payload");
 
+    let isNewUser = false;
     let user = await prisma.user.findUnique({
         where: { email: payload.email },
     });
 
     if (!user) {
+        isNewUser = true;
         user = await prisma.user.create({
             data: {
                 email: payload.email,
@@ -59,7 +61,14 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
 
     return res.status(200).json({
         message: "Google Auth successful",
-        user: { id: user.id, fullName: user.fullName, email: user.email },
+        user: {
+            id: user.id,
+            fullName: user.fullName,
+            email: user.email,
+            role: user.role,
+            avatar: user.avatar,
+        },
+        isNewUser,
     });
 });
 
