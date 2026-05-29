@@ -37,15 +37,41 @@ export const myRides = asyncHandler(async (req: Request, res: Response) => {
     if (req.userRole !== "DRIVER")
         throw AppError.forbidden("Only drivers can view their rides");
 
-    const rides = await prisma.ride.findMany({
-        where: { driverId: userId },
-        include: {
-            driver: { select: { id: true, fullName: true, avatar: true } },
-        },
-        orderBy: { departure: "asc" },
-    });
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-    return res.status(200).json({ message: "My Rides", rides });
+    const [rides, total] = await prisma.$transaction([
+        prisma.ride.findMany({
+            where: { driverId: userId },
+            include: {
+                driver: { select: { id: true, fullName: true, avatar: true } },
+                _count: {
+                    select: {
+                        bookings: { where: { status: { not: "CANCELLED" } } },
+                    },
+                },
+            },
+            orderBy: { departure: "asc" },
+            skip,
+            take: limit,
+        }),
+        prisma.ride.count({ where: { driverId: userId } }),
+    ]);
+
+    const ridesWithAvailability = rides.map((ride) => ({
+        ...ride,
+        availableSeats: ride.seats - ride._count.bookings,
+    }));
+
+    return res.status(200).json({
+        message: "My Rides",
+        rides: ridesWithAvailability,
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+    });
 });
 
 export const cancelRide = asyncHandler(async (req: Request, res: Response) => {
