@@ -267,7 +267,7 @@ export const getRidePassengers = asyncHandler(
 export const updateRide = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.userId;
     const { id: rideId } = req.params;
-    const { origin, destination, departure, price, seats, description } =
+    const { origin, destination, departure, price, seats, description, status } =
         req.body;
 
     if (!rideId || Array.isArray(rideId)) {
@@ -299,8 +299,13 @@ export const updateRide = asyncHandler(async (req: Request, res: Response) => {
         },
         select: { id: true },
     });
-    if (booking)
+
+    const hasRideEdits = [origin, destination, departure, price, seats, description]
+        .some((value) => typeof value !== "undefined");
+
+    if (booking && hasRideEdits) {
         throw AppError.forbidden("Cannot edit a ride with confirmed bookings");
+    }
 
     const updated = await prisma.ride.update({
         where: { id: parsedId },
@@ -311,6 +316,7 @@ export const updateRide = asyncHandler(async (req: Request, res: Response) => {
             price,
             seats,
             description,
+            status,
         },
     });
 

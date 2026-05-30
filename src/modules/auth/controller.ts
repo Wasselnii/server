@@ -73,7 +73,7 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
-    const { phone, password } = req.body;
+    const { phone, password, rememberMe } = req.body;
     const invalidCredentialsMessage = "Invalid phone or password";
 
     if (!phone || !password) {
@@ -94,21 +94,28 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
         throw AppError.badRequest(invalidCredentialsMessage);
     }
 
+    const tokenTtl = rememberMe ? "1d" : "1h";
+
     const token = jwt.sign(
         { sub: String(user.id), role: user.role },
         process.env.JWT_SECRET!,
         {
-            expiresIn: "1d",
+            expiresIn: tokenTtl,
         },
     );
 
-    res.cookie("jwt", token, {
+    const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        sameSite: "lax" as const,
         path: "/",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    };
+
+    if (rememberMe) {
+        cookieOptions.maxAge = 24 * 60 * 60 * 1000;
+    }
+
+    res.cookie("jwt", token, cookieOptions);
 
     return res.status(200).json({
         message: "Login successful",
@@ -193,6 +200,34 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
     });
     return res.status(200).json({
         message: "Logout successful",
+    });
+});
+
+export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
+    const { phone, newPassword } = req.body;
+
+    if (!checkPhoneVerified(phone)) {
+        throw AppError.badRequest(
+            "Phone number not verified. Please complete OTP verification first.",
+        );
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { phone } });
+    if (!existingUser) {
+        throw AppError.notFound("User");
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+        where: { phone },
+        data: { password: hashedPassword },
+    });
+
+    consumeVerifiedPhone(phone);
+
+    return res.status(200).json({
+        message: "Password reset successful",
     });
 });
 

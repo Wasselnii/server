@@ -23,6 +23,9 @@ export const updateRideSchema = z.object({
         .positive("Seats must be a positive integer")
         .optional(),
     description: z.string().max(500, "500 characters at max").optional(),
+    status: z
+        .enum(["ACTIVE", "FULL", "CANCELLED", "COMPLETED", "IN_PROGRESS"])
+        .optional(),
 });
 
 export const searchSchema = z.object({

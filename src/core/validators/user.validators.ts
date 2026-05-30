@@ -6,6 +6,7 @@ export const loginBodySchema = z.object({
         .length(10, "Phone number must be exactly 10 digits")
         .regex(/^0[5-7]\d{8}$/, "Invalid Algerian phone number"),
     password: z.string().trim().min(5).max(20),
+    rememberMe: z.boolean().optional(),
 });
 
 export const signupBodySchema = z.object({
@@ -51,4 +52,12 @@ export const phoneBodySchema = z.object({
         .length(10, "Phone number must be exactly 10 digits")
         .regex(/^0[5-7]\d{8}$/, "Invalid Algerian phone number"),
     otp: z.string().trim().optional(),
+});
+
+export const resetPasswordSchema = z.object({
+    phone: z
+        .string()
+        .length(10, "Phone number must be exactly 10 digits")
+        .regex(/^0[5-7]\d{8}$/, "Invalid Algerian phone number"),
+    newPassword: z.string().trim().min(5).max(20),
 });
