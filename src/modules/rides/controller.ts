@@ -112,7 +112,8 @@ export const cancelRide = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const searchRide = asyncHandler(async (req: Request, res: Response) => {
-    const { origin, destination, departure, price, seats } = req.query;
+    const { origin, destination, departure, price, seats, sortBy, sortOrder } =
+        req.query;
 
     const where: any = {
         status: "ACTIVE",
@@ -127,6 +128,19 @@ export const searchRide = asyncHandler(async (req: Request, res: Response) => {
     if (departure) where.departure = { gte: new Date(departure as string) };
     if (seats) where.seats = { gte: Number(seats) };
     if (price) where.price = { lte: Number(price) };
+
+    const direction = sortOrder === "desc" ? "desc" : "asc";
+    let orderBy: any = { departure: "asc" };
+
+    if (sortBy === "price") {
+        orderBy = { price: direction };
+    } else if (sortBy === "departure") {
+        orderBy = { departure: direction };
+    } else if (sortBy === "rating") {
+        // TODO: Switch to ordering by driver average rating when supported by Prisma client.
+        orderBy = { departure: "asc" };
+    }
+
     const rides = await prisma.ride.findMany({
         where,
         include: {
@@ -139,7 +153,7 @@ export const searchRide = asyncHandler(async (req: Request, res: Response) => {
         },
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { departure: "asc" },
+        orderBy,
     });
 
     const ridesWithAvailability = rides.map((ride) => ({
